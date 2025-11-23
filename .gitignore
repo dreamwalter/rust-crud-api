@@ -1,0 +1,15 @@
+/target
+**/*.rs.bk
+
+# 環境變數
+.env
+.env.local
+
+# 作業系統
+.DS_Store
+Thumbs.db
+
+# 編輯器
+.vscode/
+.idea/
+
