@@ -51,7 +51,8 @@ async fn main() -> std::io::Result<()> {
             .route("/users", web::post().to(create_user))
             .route("/users/{id}", web::put().to(update_user))
             .route("/users/{id}", web::delete().to(delete_user))
-            .route("/dispositions", web::get().to(get_dispositions))
+            .route("/disposition", web::get().to(get_disposition))
+            .route("/disposition/{symbol}", web::get().to(get_disposition_by_symbol))
     })
     .bind("127.0.0.1:8888")?
     .run()

@@ -1,19 +1,23 @@
 use actix_web::{web, HttpResponse};
-use crate::models::{User, CreateUser, UpdateUser, ApiResponse};
+use crate::models::{User, CreateUser, UpdateUser, Disposition, ApiResponse};
 use crate::repository::{UserRepository, DispositionRepository};
 use crate::db::DbPool;
-// use mysql::Pool;
-// use anyhow::Result;
 
-pub async fn get_users(pool: web::Data<DbPool>) -> HttpResponse {
-    let mut conn = match pool.get_conn() {
-        Ok(conn) => conn,
-        Err(e) => {
-            return HttpResponse::InternalServerError().json(
-                ApiResponse::<Vec<User>>::error(&format!("資料庫連接失敗: {}", e))
-            );
+macro_rules! get_conn {
+    ($pool:expr, $type:ty) => {
+        match $pool.get_conn() {
+            Ok(conn) => conn,
+            Err(e) => {
+                return HttpResponse::InternalServerError().json(
+                    ApiResponse::<$type>::error(&format!("資料庫連接失敗: {}", e))
+                );
+            }
         }
     };
+}
+
+pub async fn get_users(pool: web::Data<DbPool>) -> HttpResponse {
+    let mut conn = get_conn!(&pool, User);
 
     match UserRepository::get_all(&mut conn) {
         Ok(users) => HttpResponse::Ok().json(ApiResponse::success(users, "成功獲取所有使用者")),
@@ -28,14 +32,7 @@ pub async fn get_user_by_id(
     path: web::Path<u32>,
 ) -> HttpResponse {
     let id = path.into_inner();
-    let mut conn = match pool.get_conn() {
-        Ok(conn) => conn,
-        Err(e) => {
-            return HttpResponse::InternalServerError().json(
-                ApiResponse::<User>::error(&format!("資料庫連接失敗: {}", e))
-            );
-        }
-    };
+    let mut conn = get_conn!(&pool, User);
 
     match UserRepository::get_by_id(&mut conn, id) {
         Ok(Some(user)) => HttpResponse::Ok().json(ApiResponse::success(user, "成功獲取使用者")),
@@ -52,14 +49,7 @@ pub async fn create_user(
     pool: web::Data<DbPool>,
     user: web::Json<CreateUser>,
 ) -> HttpResponse {
-    let mut conn = match pool.get_conn() {
-        Ok(conn) => conn,
-        Err(e) => {
-            return HttpResponse::InternalServerError().json(
-                ApiResponse::<User>::error(&format!("資料庫連接失敗: {}", e))
-            );
-        }
-    };
+    let mut conn = get_conn!(&pool, User);
 
     match UserRepository::create(&mut conn, &user.into_inner()) {
         Ok(new_user) => HttpResponse::Created().json(ApiResponse::success(new_user, "成功創建使用者")),
@@ -84,14 +74,7 @@ pub async fn update_user(
     user: web::Json<UpdateUser>,
 ) -> HttpResponse {
     let id = path.into_inner();
-    let mut conn = match pool.get_conn() {
-        Ok(conn) => conn,
-        Err(e) => {
-            return HttpResponse::InternalServerError().json(
-                ApiResponse::<User>::error(&format!("資料庫連接失敗: {}", e))
-            );
-        }
-    };
+    let mut conn = get_conn!(&pool, User);
 
     match UserRepository::update(&mut conn, id, &user.into_inner()) {
         Ok(Some(updated_user)) => HttpResponse::Ok().json(ApiResponse::success(updated_user, "成功更新使用者")),
@@ -118,14 +101,7 @@ pub async fn delete_user(
     path: web::Path<u32>,
 ) -> HttpResponse {
     let id = path.into_inner();
-    let mut conn = match pool.get_conn() {
-        Ok(conn) => conn,
-        Err(e) => {
-            return HttpResponse::InternalServerError().json(
-                ApiResponse::<bool>::error(&format!("資料庫連接失敗: {}", e))
-            );
-        }
-    };
+    let mut conn = get_conn!(&pool, User);
 
     match UserRepository::delete(&mut conn, id) {
         Ok(true) => HttpResponse::Ok().json(ApiResponse::success(true, "成功刪除使用者")),
@@ -138,20 +114,31 @@ pub async fn delete_user(
     }
 }
 
-pub async fn get_dispositions(pool: web::Data<DbPool>) -> HttpResponse {
-    let mut conn = match pool.get_conn() {
-        Ok(conn) => conn,
-        Err(e) => {
-            return HttpResponse::InternalServerError().json(
-                ApiResponse::<Vec<User>>::error(&format!("資料庫連接失敗: {}", e))
-            );
-        }
-    };
+pub async fn get_disposition(pool: web::Data<DbPool>) -> HttpResponse {
+    let mut conn = get_conn!(&pool, Disposition);
 
     match DispositionRepository::get_all(&mut conn) {
-        Ok(users) => HttpResponse::Ok().json(ApiResponse::success(users, "成功獲取所有使用者")),
+        Ok(disposition) => HttpResponse::Ok().json(ApiResponse::success(disposition, "成功獲取所有處置股")),
         Err(e) => HttpResponse::InternalServerError().json(
-            ApiResponse::<Vec<User>>::error(&format!("獲取使用者失敗: {}", e))
+            ApiResponse::<Vec<Disposition>>::error(&format!("獲取處置股失敗: {}", e))
+        ),
+    }
+}
+
+pub async fn get_disposition_by_symbol(
+    pool: web::Data<DbPool>,
+    path: web::Path<u32>,
+) -> HttpResponse {
+    let symbol = path.into_inner();
+    let mut conn = get_conn!(&pool, Disposition);
+
+    match DispositionRepository::get_by_symbol(&mut conn, symbol) {
+        Ok(Some(user)) => HttpResponse::Ok().json(ApiResponse::success(user, "成功獲取處置股")),
+        Ok(None) => HttpResponse::NotFound().json(
+            ApiResponse::<Disposition>::error(&format!("找不到 ID 為 {} 的處置股", symbol))
+        ),
+        Err(e) => HttpResponse::InternalServerError().json(
+            ApiResponse::<Disposition>::error(&format!("獲取處置股失敗: {}", e))
         ),
     }
 }

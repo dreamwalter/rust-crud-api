@@ -35,13 +35,13 @@ pub struct Disposition {
     pub updated_at: Option<NaiveDateTime>,
 }
 
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct CreateDisposition {
-//     pub stock_date: String,
-//     pub market: String,
-//     pub symbol: String,
-//     pub name: String,
-// }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct CreateDisposition {
+    pub stock_date: String,
+    pub market: String,
+    pub symbol: String,
+    pub name: String,
+}
 
 // #[derive(Debug, Serialize, Deserialize)]
 // pub struct UpdateDisposition {

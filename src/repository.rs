@@ -112,7 +112,7 @@ impl DispositionRepository {
         
         let rows: Vec<(Value, String, i32, String, Value, Value, Value, Value)> = conn.exec(query, ())?;
       
-        let users: Vec<Disposition> = rows.into_iter().map(|(stock_date_val, market, symbol, name, start_val, end_val, created_val, updated_val)| {
+        let disposition: Vec<Disposition> = rows.into_iter().map(|(stock_date_val, market, symbol, name, start_val, end_val, created_val, updated_val)| {
             let stock_date = parse_date(stock_date_val);
             let start = parse_date(start_val);
             let end = parse_date(end_val);
@@ -121,13 +121,13 @@ impl DispositionRepository {
             Disposition { stock_date, market, symbol, name, start, end, created_at, updated_at }
         }).collect();
       
-        Ok(users)
+        Ok(disposition)
     }
 
-    pub fn get_by_id(conn: &mut PooledConn, id: u32) -> Result<Option<Disposition>> {
-        let query = "SELECT stock_date, market, symbol, name, start, end, created_at, updated_at FROM s_disposition WHERE id = ?";
+    pub fn get_by_symbol(conn: &mut PooledConn, symbol: u32) -> Result<Option<Disposition>> {
+        let query = "SELECT stock_date, market, symbol, name, start, end, created_at, updated_at FROM s_disposition WHERE symbol = ? ORDER BY end DESC LIMIT 1";
 
-        let row_opt: Option<(Value, String, i32, String, Value, Value, Value, Value)> = conn.exec_first(query, (id,))?;
+        let row_opt: Option<(Value, String, i32, String, Value, Value, Value, Value)> = conn.exec_first(query, (symbol,))?;
     
         if let Some((stock_date_val, market, symbol, name, start_val, end_val, created_val, updated_val)) = row_opt {
             let stock_date = parse_date(stock_date_val);
@@ -141,13 +141,13 @@ impl DispositionRepository {
         }
     }
 
-    // pub fn create(conn: &mut PooledConn, user: &CreateDisposition) -> Result<Disposition> {
-    //     let query = "INSERT INTO user (name, email) VALUES (?, ?)";
-    //     conn.exec_drop(query, ( &user.name, &user.email ))?;
+    // pub fn create(conn: &mut PooledConn, disposition: &CreateDisposition) -> Result<Disposition> {
+    //     let query = "INSERT INTO s_disposition (stock_date, market, symbol, name) VALUES (?, ?, ?, ?)";
+    //     conn.exec_drop(query, ( &disposition.name, &disposition.email ))?;
 
     //     let user_id = conn.last_insert_id();
-    //     if let Some(user) = Self::get_by_id(conn, user_id as u32)? {
-    //         Ok(user)
+    //     if let Some(disposition) = Self::get_by_id(conn, disposition_id as u32)? {
+    //         Ok(disposition)
     //     } else {
     //         anyhow::bail!("無法獲取新創建的使用者")
     //     }
