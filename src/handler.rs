@@ -1,5 +1,5 @@
 use actix_web::{web, HttpResponse};
-use crate::models::{User, CreateUser, UpdateUser, Disposition, ApiResponse};
+use crate::models::{User, CreateUser, UpdateUser, Disposition, CreateDisposition, UpdateDisposition, ApiResponse};
 use crate::repository::{UserRepository, DispositionRepository};
 use crate::db::DbPool;
 
@@ -16,11 +16,11 @@ macro_rules! get_conn {
     };
 }
 
-pub async fn get_users(pool: web::Data<DbPool>) -> HttpResponse {
+pub async fn get_user(pool: web::Data<DbPool>) -> HttpResponse {
     let mut conn = get_conn!(&pool, User);
 
     match UserRepository::get_all(&mut conn) {
-        Ok(users) => HttpResponse::Ok().json(ApiResponse::success(users, "成功獲取所有使用者")),
+        Ok(user) => HttpResponse::Ok().json(ApiResponse::success(user, "成功獲取所有使用者")),
         Err(e) => HttpResponse::InternalServerError().json(
             ApiResponse::<Vec<User>>::error(&format!("獲取使用者失敗: {}", e))
         ),
@@ -127,18 +127,69 @@ pub async fn get_disposition(pool: web::Data<DbPool>) -> HttpResponse {
 
 pub async fn get_disposition_by_symbol(
     pool: web::Data<DbPool>,
-    path: web::Path<u32>,
+    path: web::Path<i32>,
 ) -> HttpResponse {
     let symbol = path.into_inner();
     let mut conn = get_conn!(&pool, Disposition);
 
     match DispositionRepository::get_by_symbol(&mut conn, symbol) {
-        Ok(Some(user)) => HttpResponse::Ok().json(ApiResponse::success(user, "成功獲取處置股")),
+        Ok(Some(disposition)) => HttpResponse::Ok().json(ApiResponse::success(disposition, "成功獲取處置股")),
         Ok(None) => HttpResponse::NotFound().json(
             ApiResponse::<Disposition>::error(&format!("找不到 ID 為 {} 的處置股", symbol))
         ),
         Err(e) => HttpResponse::InternalServerError().json(
             ApiResponse::<Disposition>::error(&format!("獲取處置股失敗: {}", e))
         ),
+    }
+}
+
+pub async fn create_disposition(
+    pool: web::Data<DbPool>,
+    disposition: web::Json<CreateDisposition>,
+) -> HttpResponse {
+    let mut conn = get_conn!(&pool, Disposition);
+
+    match DispositionRepository::create(&mut conn, &disposition.into_inner()) {
+        Ok(new_disposition) => HttpResponse::Created().json(ApiResponse::success(new_disposition, "成功創建處置股")),
+        Err(e) => {
+            let error_msg = e.to_string();
+            if error_msg.contains("Duplicate entry") {
+                HttpResponse::BadRequest().json(
+                    ApiResponse::<Disposition>::error("電子郵件已存在")
+                )
+            } else {
+                HttpResponse::InternalServerError().json(
+                    ApiResponse::<Disposition>::error(&format!("創建處置股失敗: {}", error_msg))
+                )
+            }
+        }
+    }
+}
+
+pub async fn update_disposition(
+    pool: web::Data<DbPool>,
+    path: web::Path<i32>,
+    disposition: web::Json<UpdateDisposition>,
+) -> HttpResponse {
+    let symbol = path.into_inner();
+    let mut conn = get_conn!(&pool, Disposition);
+
+    match DispositionRepository::update(&mut conn, symbol, &disposition.into_inner()) {
+        Ok(Some(updated_disposition)) => HttpResponse::Ok().json(ApiResponse::success(updated_disposition, "成功更新處置股")),
+        Ok(None) => HttpResponse::NotFound().json(
+            ApiResponse::<Disposition>::error(&format!("找不到 ID 為 {} 的處置股", symbol))
+        ),
+        Err(e) => {
+            let error_msg = e.to_string();
+            if error_msg.contains("Duplicate entry") {
+                HttpResponse::BadRequest().json(
+                    ApiResponse::<Disposition>::error("電子郵件已存在")
+                )
+            } else {
+                HttpResponse::InternalServerError().json(
+                    ApiResponse::<Disposition>::error(&format!("更新處置股失敗: {}", error_msg))
+                )
+            }
+        }
     }
 }

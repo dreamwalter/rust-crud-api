@@ -42,17 +42,20 @@ async fn main() -> std::io::Result<()> {
             .supports_credentials()
             .max_age(3600);
             
+        // to(handler)
         App::new()
             .app_data(web::Data::new(pool.clone()))
             .wrap(cors)
             .route("/health", web::get().to(health_check))  // 健康檢查
-            .route("/users", web::get().to(get_users))
-            .route("/users/{id}", web::get().to(get_user_by_id))
-            .route("/users", web::post().to(create_user))
-            .route("/users/{id}", web::put().to(update_user))
-            .route("/users/{id}", web::delete().to(delete_user))
+            .route("/user", web::get().to(get_user))
+            .route("/user/{id}", web::get().to(get_user_by_id))
+            .route("/user", web::post().to(create_user))
+            .route("/user/{id}", web::put().to(update_user))
+            .route("/user/{id}", web::delete().to(delete_user))
             .route("/disposition", web::get().to(get_disposition))
             .route("/disposition/{symbol}", web::get().to(get_disposition_by_symbol))
+            .route("/disposition", web::post().to(create_disposition))
+            .route("/disposition/{symbol}", web::put().to(update_disposition))
     })
     .bind("127.0.0.1:8888")?
     .run()

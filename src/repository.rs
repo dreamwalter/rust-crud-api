@@ -1,4 +1,4 @@
-use crate::models::{User, CreateUser, UpdateUser, Disposition};
+use crate::models::{User, CreateUser, UpdateUser, Disposition, CreateDisposition, UpdateDisposition};
 use anyhow::Result;
 use mysql::{prelude::*, PooledConn, Value};
 use chrono::{NaiveDate, NaiveTime, NaiveDateTime};
@@ -23,13 +23,13 @@ impl UserRepository {
         
         let rows: Vec<(u32, String, String, Value, Value)> = conn.exec(query, ())?;
       
-        let users: Vec<User> = rows.into_iter().map(|(id, name, email, created_val, updated_val)| {
+        let user: Vec<User> = rows.into_iter().map(|(id, name, email, created_val, updated_val)| {
             let created_at = parse_datetime(created_val);
             let updated_at = parse_datetime(updated_val);
             User { id, name, email, created_at, updated_at }
         }).collect();
       
-        Ok(users)
+        Ok(user)
     }
 
     pub fn get_by_id(conn: &mut PooledConn, id: u32) -> Result<Option<User>> {
@@ -124,7 +124,7 @@ impl DispositionRepository {
         Ok(disposition)
     }
 
-    pub fn get_by_symbol(conn: &mut PooledConn, symbol: u32) -> Result<Option<Disposition>> {
+    pub fn get_by_symbol(conn: &mut PooledConn, symbol: i32) -> Result<Option<Disposition>> {
         let query = "SELECT stock_date, market, symbol, name, start, end, created_at, updated_at FROM s_disposition WHERE symbol = ? ORDER BY end DESC LIMIT 1";
 
         let row_opt: Option<(Value, String, i32, String, Value, Value, Value, Value)> = conn.exec_first(query, (symbol,))?;
@@ -141,15 +141,44 @@ impl DispositionRepository {
         }
     }
 
-    // pub fn create(conn: &mut PooledConn, disposition: &CreateDisposition) -> Result<Disposition> {
-    //     let query = "INSERT INTO s_disposition (stock_date, market, symbol, name) VALUES (?, ?, ?, ?)";
-    //     conn.exec_drop(query, ( &disposition.name, &disposition.email ))?;
+    pub fn create(conn: &mut PooledConn, disposition: &CreateDisposition) -> Result<Disposition> {
+        let query = "INSERT INTO s_disposition (stock_date, market, symbol, name) VALUES (?, ?, ?, ?)";
+        let symbol_num: i32 = disposition.symbol.parse().map_err(|e| {
+            anyhow::anyhow!("無效的股票代碼格式 '{}': {}", disposition.symbol, e)
+        })?;
+        conn.exec_drop(query, ( &disposition.stock_date, &disposition.market, symbol_num, &disposition.name ))?;
 
-    //     let user_id = conn.last_insert_id();
-    //     if let Some(disposition) = Self::get_by_id(conn, disposition_id as u32)? {
-    //         Ok(disposition)
-    //     } else {
-    //         anyhow::bail!("無法獲取新創建的使用者")
-    //     }
-    // }
+        if let Some(disposition) = Self::get_by_symbol(conn, symbol_num)? {
+            Ok(disposition)
+        } else {
+            anyhow::bail!("無法獲取新創建的處置股")
+        }
+    }
+
+    pub fn update(conn: &mut PooledConn, symbol: i32, disposition: &UpdateDisposition) -> Result<Option<Disposition>> {
+        let mut updates = Vec::new();
+        let mut params = Vec::new();
+
+        if let Some(start) = &disposition.start {
+            updates.push("start = ?");
+            params.push(start.clone());
+        }
+
+        if let Some(end) = &disposition.end {
+            updates.push("end = ?");
+            params.push(end.clone());
+        }
+
+        if updates.is_empty() {
+            return Self::get_by_symbol(conn, symbol);
+        }
+
+        let query = format!("UPDATE s_disposition SET {} WHERE symbol = ? ORDER BY end DESC LIMIT 1", updates.join(", "));
+        params.push(symbol.to_string());
+
+        conn.exec_drop(&query, params)?;
+
+        Self::get_by_symbol(conn, symbol)
+    }
+
 }

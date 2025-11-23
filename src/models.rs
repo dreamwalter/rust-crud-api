@@ -43,13 +43,11 @@ pub struct CreateDisposition {
     pub name: String,
 }
 
-// #[derive(Debug, Serialize, Deserialize)]
-// pub struct UpdateDisposition {
-//     pub stock_date: String,
-//     pub symbol: Option<String>,
-//     pub start: Option<String>,
-//     pub end: Option<String>,
-// }
+#[derive(Debug, Serialize, Deserialize)]
+pub struct UpdateDisposition {
+    pub start: Option<String>,
+    pub end: Option<String>,
+}
 
 // 通用 API 回應
 #[derive(Debug, Serialize)]
