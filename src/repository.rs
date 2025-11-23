@@ -181,4 +181,13 @@ impl DispositionRepository {
         Self::get_by_symbol(conn, symbol)
     }
 
+    pub fn delete(conn: &mut PooledConn, symbol: i32) -> Result<bool> {
+        let query = "DELETE FROM s_disposition WHERE symbol = ? ORDER BY end DESC LIMIT 1";
+        
+        let result = conn.exec_iter(query, (symbol,))?;
+        
+        let affected_rows = result.affected_rows();
+
+        Ok(affected_rows > 0)
+    }
 }

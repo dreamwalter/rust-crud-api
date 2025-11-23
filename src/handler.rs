@@ -147,6 +147,8 @@ pub async fn create_disposition(
     pool: web::Data<DbPool>,
     disposition: web::Json<CreateDisposition>,
 ) -> HttpResponse {
+    let stock_date = disposition.stock_date.clone();
+    let name = disposition.name.clone();
     let mut conn = get_conn!(&pool, Disposition);
 
     match DispositionRepository::create(&mut conn, &disposition.into_inner()) {
@@ -155,7 +157,7 @@ pub async fn create_disposition(
             let error_msg = e.to_string();
             if error_msg.contains("Duplicate entry") {
                 HttpResponse::BadRequest().json(
-                    ApiResponse::<Disposition>::error("電子郵件已存在")
+                    ApiResponse::<Disposition>::error(&format!("{} {} 已存在", stock_date, name)) 
                 )
             } else {
                 HttpResponse::InternalServerError().json(
@@ -177,7 +179,7 @@ pub async fn update_disposition(
     match DispositionRepository::update(&mut conn, symbol, &disposition.into_inner()) {
         Ok(Some(updated_disposition)) => HttpResponse::Ok().json(ApiResponse::success(updated_disposition, "成功更新處置股")),
         Ok(None) => HttpResponse::NotFound().json(
-            ApiResponse::<Disposition>::error(&format!("找不到 ID 為 {} 的處置股", symbol))
+            ApiResponse::<Disposition>::error(&format!("找不到 Symbol 為 {} 的處置股", symbol))
         ),
         Err(e) => {
             let error_msg = e.to_string();
@@ -191,5 +193,23 @@ pub async fn update_disposition(
                 )
             }
         }
+    }
+}
+
+pub async fn delete_disposition(
+    pool: web::Data<DbPool>,
+    path: web::Path<i32>,
+) -> HttpResponse {
+    let symbol = path.into_inner();
+    let mut conn = get_conn!(&pool, Disposition);
+
+    match DispositionRepository::delete(&mut conn, symbol) {
+        Ok(true) => HttpResponse::Ok().json(ApiResponse::success(true, "成功刪除處置股")),
+        Ok(false) => HttpResponse::NotFound().json(
+            ApiResponse::<bool>::error(&format!("找不到 Symbol 為 {} 的處置股", symbol))
+        ),
+        Err(e) => HttpResponse::InternalServerError().json(
+            ApiResponse::<bool>::error(&format!("刪除處置股失敗: {}", e))
+        ),
     }
 }
